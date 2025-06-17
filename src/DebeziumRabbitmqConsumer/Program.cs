@@ -14,10 +14,10 @@ var factory = new ConnectionFactory
     Port     = port,
     UserName = user,
     Password = pass,
-    AutomaticRecoveryEnabled = true   // good practice anyway
+    AutomaticRecoveryEnabled = true
 };
 
-var maxAttempts = 12;      // ±1 minute total (12 × 5 s)
+var maxAttempts = 12;
 var delay       = TimeSpan.FromSeconds(5);
 
 IConnection? connection = null;
@@ -32,7 +32,8 @@ for (var attempt = 1; attempt <= maxAttempts; attempt++)
     catch (Exception ex)
     {
         Console.WriteLine($"RabbitMQ not ready (attempt {attempt}/{maxAttempts}): {ex.Message}");
-        if (attempt == maxAttempts) throw;   // give up
+        if (attempt == maxAttempts)
+            throw;
         Thread.Sleep(delay);
     }
 }
@@ -46,7 +47,6 @@ const string routingKey = "dbz.inventory";   // must match Debezium config
 channel.ExchangeDeclare(exchange: exchange,
                         type: ExchangeType.Topic,
                         durable: true);
-
 
 channel.QueueDeclare(queue: queueName,
                      durable: false,
@@ -77,4 +77,3 @@ Console.CancelKeyPress += (s, e) =>
 };
 
 shutdown.Wait();       // Block indefinitely
-
