@@ -17,7 +17,11 @@ This project demonstrates a full pipeline using:
 ```bash
 # 1. Clone this repo
 git clone https://github.com/andrehalley6/debezium-mysql-rabbitmq-dotnet-demo.git
-cd debezium-rmq-dotnet-consumer
+cd debezium-mysql-rabbitmq-dotnet-demo
 
 # 2. Start all services
 docker-compose -p debezium-mysql-rabbitmq-dotnet-demo up --build
+
+# 3. Test it
+Try to insert or update row data
+```
