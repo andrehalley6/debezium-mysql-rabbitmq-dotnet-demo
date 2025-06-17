@@ -1,0 +1,64 @@
+# ─────────────────────────────────────  PERSISTENT DATA  ──────────────────────────────────────
+volumes:
+  mysql_data:          # MySQL rows + binlogs
+  debezium_data:       # Debezium offsets + schema history
+
+# ─────────────────────────────────────────  SERVICES  ─────────────────────────────────────────
+services:
+  # 1) RabbitMQ ────────────────────────────────────────────────────────────────────────────────
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: rabbitmq
+    ports:
+      - "5673:5672"      # AMQP  → localhost:5673
+      - "15673:15672"    # UI    → http://localhost:15673
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 2) MySQL 8.4 ───────────────────────────────────────────────────────────────────────────────
+  mysql:
+    image: mysql:8.0
+    container_name: mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: inventory
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql/conf.d/my.cnf:/etc/mysql/conf.d/my.cnf:ro     # binlog settings
+      - ./mysql/init:/docker-entrypoint-initdb.d:ro           # seed tables/data
+
+  # 3) Debezium Server → RabbitMQ ──────────────────────────────────────────────────────────────
+  debezium:
+    image: quay.io/debezium/server:2.7
+    container_name: debezium
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      mysql:
+        condition: service_started
+    volumes:
+      - debezium_data:/debezium/data      # offsets + schema history live here
+      - ./debezium/conf:/debezium/conf:ro
+
+  # 4) .NET consumer ───────────────────────────────────────────────────────────────────────────
+  consumer:
+    build:
+      context: ./src/DebeziumRabbitmqConsumer
+    container_name: consumer
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: guest
+      RABBITMQ_PASS: guest
+    tty: true              # keeps Console.ReadLine() blocking
